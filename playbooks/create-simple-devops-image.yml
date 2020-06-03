@@ -1,0 +1,26 @@
+---
+- hosts: ansible-server
+  become: true
+  vars:
+    userHub: '{{ userFromJenkins }}'
+    passHub: '{{ pass }}'
+    commit: '{{ imageTag }}'
+
+  tasks:
+  - name: create docker image using war file
+    command: docker build -t simple-devops-image:{{ commit }} .
+    args:
+      chdir: /opt/kubernetes
+
+  - name: create tag to image
+    command: docker image tag simple-devops-image jose4125/simple-devops-image:{{ commit }}
+
+  - name: login to docker registry
+    command: docker login -u {{ userHub }} -p {{ passHub }}
+
+  - name: push the image to the registry
+    command: docker push jose4125/simple-devops-image:{{ commit }}
+
+  - name: remove image from ansible server
+    command: docker image rm simple-devops-image:{{ commit }} jose4125/simple-devops-image:{{ commit }}
+    ignore_errors: yes

@@ -1,0 +1,43 @@
+pipeline{
+    agent any
+    environment{
+      PASS = credentials('docker-hub')
+      USERHUB = "${env.USER_HUB}"
+    }
+    parameters {
+      string(
+        name: 'commit',
+        defaultValue: 'latest',
+        description: 'image tag'
+      )
+    }
+    stages {
+        stage("print param") {
+            steps {
+              echo "param commit = ${params.commit}"
+            }
+        }
+
+        stage("deployment"){
+            steps([$class: 'BapSshPromotionPublisherPlugin']) {
+                sshPublisher(
+                  continueOnError: false, failOnError: true,
+                  publishers: [
+                    sshPublisherDesc(
+                      configName: "ansible-server",
+                      verbose: true,
+                      transfers: [
+                        sshTransfer(
+                          execCommand: "ansible-playbook //opt/kubernetes/kubernetes-valaxy-deployment.yml --extra-vars '{\"imageTag\":${params.commit}}'"
+                        ),
+                        sshTransfer(
+                          execCommand: "ansible-playbook //opt/kubernetes/kubernetes-valaxy-service.yml"
+                        )
+                      ]
+                    )
+                  ]
+                )
+            }
+        }
+    }
+}
